@@ -1,68 +1,58 @@
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import React from 'react';
+import { Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../../src/theme/colors';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+const Icon = Ionicons as any;
+
+const TAB_ICONS: Record<string, string> = {
+  index: 'eye-off-outline',
+  reveal: 'key-outline',
+  inspector: 'analytics-outline',
+};
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+      screenOptions={({ route }) => ({
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarStyle: {
+          backgroundColor: COLORS.cardBg,
+          borderTopColor: COLORS.border,
+        },
+        headerStyle: {
+          backgroundColor: COLORS.cardBg,
+        },
+        headerTintColor: COLORS.textPrimary,
+        tabBarIcon: ({ color, size }) => (
+          <Icon
+            name={TAB_ICONS[route.name] ?? 'ellipse-outline'}
+            size={size}
+            color={color}
+          />
+        ),
+      })}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          title: 'Hide',
+          headerTitle: 'Embed Secret in Image',
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="reveal"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
+          title: 'Reveal',
+          headerTitle: 'Extract Hidden Secret',
+        }}
+      />
+      <Tabs.Screen
+        name="inspector"
+        options={{
+          title: 'Inspector',
+          headerTitle: 'LSB Pixel Inspector',
         }}
       />
     </Tabs>

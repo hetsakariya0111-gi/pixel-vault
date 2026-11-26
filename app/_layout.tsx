@@ -1,56 +1,76 @@
-import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/components/useColorScheme';
-
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
-
-export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  anchor: '(tabs)',
-};
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Stack } from 'expo-router';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../src/theme/colors';
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+  const authenticate = async () => {
+    setAuthError(null);
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    if (!hasHardware) {
+      // જો Emulator માં ફિંગરપ્રિન્ટ સેન્સર ન હોય તો સીધું અનલોક થશે
+      setIsUnlocked(true);
+      return;
     }
-  }, [loaded]);
 
-  if (!loaded) {
-    return null;
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Unlock Pixel Steganography Vault',
+      fallbackLabel: 'Use Device Passcode',
+    });
+
+    if (result.success) {
+      setIsUnlocked(true);
+    } else {
+      setAuthError('Authentication failed. Tap below to try again.');
+    }
+  };
+
+  useEffect(() => {
+    authenticate();
+  }, []);
+
+  if (!isUnlocked) {
+    return (
+      <View style={styles.lockContainer}>
+        <Ionicons name="shield-checkmark" size={72} color={COLORS.primary} />
+        <Text style={styles.title}>Pixel Vault Locked</Text>
+        <Text style={styles.subtitle}>Zero-Knowledge Hardware Biometric Gate</Text>
+        {authError && <Text style={styles.error}>{authError}</Text>}
+        <TouchableOpacity style={styles.unlockBtn} onPress={authenticate}>
+          <Text style={styles.unlockBtnText}>Unlock with Biometrics</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
-    </ThemeProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+    </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  lockContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  title: { color: COLORS.textPrimary, fontSize: 24, fontWeight: '700', marginTop: 16 },
+  subtitle: { color: COLORS.textSecondary, fontSize: 14, marginTop: 6, marginBottom: 24 },
+  error: { color: COLORS.danger, marginBottom: 16, textAlign: 'center' },
+  unlockBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  unlockBtnText: { color: COLORS.background, fontWeight: '800', fontSize: 16 },
+});
