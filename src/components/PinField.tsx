@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme/colors';
 
+const Icon = Ionicons as any;
+
 interface PinFieldProps {
   label: string;
   value: string;
@@ -10,27 +12,40 @@ interface PinFieldProps {
   placeholder?: string;
 }
 
-export function PinField({ label, value, onChangeText, placeholder = 'Enter 4-8 digit PIN' }: PinFieldProps) {
-  // pin visibility toggle state
+export function PinField({
+  label,
+  value,
+  onChangeText,
+  placeholder = 'Enter 4-8 digit PIN',
+}: PinFieldProps) {
   const [isHidden, setIsHidden] = useState(true);
+
+  const handleNumericChange = (text: string) => {
+    const digitsOnly = text.replace(/[^0-9]/g, '').slice(0, 8);
+    onChangeText(digitsOnly);
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.counter}>{value.length}/8</Text>
+      </View>
+
       <View style={styles.inputRow}>
-        <Ionicons name="lock-closed-outline" size={20} color={COLORS.primary} style={styles.icon} />
+        <Icon name="lock-closed-outline" size={20} color={COLORS.primary} style={styles.icon} />
         <TextInput
           style={styles.input}
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={handleNumericChange}
           placeholder={placeholder}
           placeholderTextColor={COLORS.textMuted}
-          secureTextEntry={isHidden} // ture then visible ....
-          keyboardType="numeric"      // only number keyboard opens
-          maxLength={12}
+          secureTextEntry={isHidden}
+          keyboardType="number-pad"
+          maxLength={8}
         />
         <TouchableOpacity onPress={() => setIsHidden(!isHidden)} style={styles.eyeBtn}>
-          <Ionicons
+          <Icon
             name={isHidden ? 'eye-outline' : 'eye-off-outline'}
             size={20}
             color={COLORS.textSecondary}
@@ -43,7 +58,9 @@ export function PinField({ label, value, onChangeText, placeholder = 'Enter 4-8 
 
 const styles = StyleSheet.create({
   container: { marginBottom: 16 },
-  label: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  label: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '600' },
+  counter: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -54,6 +71,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   icon: { marginRight: 8 },
-  input: { flex: 1, color: COLORS.textPrimary, fontSize: 16, paddingVertical: 14, letterSpacing: 2 },
+  input: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 16,
+    paddingVertical: 14,
+    letterSpacing: 2,
+  },
   eyeBtn: { padding: 6 },
 });

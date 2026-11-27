@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Skia, AlphaType, ColorType } from '@shopify/react-native-skia';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../src/theme/colors';
 import { ImageDropzone, SelectedImageInfo } from '../../src/components/ImageDropzone';
 import { readImageAsBase64 } from '../../src/core/fileHelper';
+import { STEGO_MAGIC, BitDepthMode } from '../../src/core/protocol';
+
+const Icon = Ionicons as any;
 
 interface PixelSample {
   index: number;
@@ -18,12 +23,12 @@ interface PixelSample {
 export default function BitInspectorScreen() {
   const [imageInfo, setImageInfo] = useState<SelectedImageInfo | null>(null);
   const [samples, setSamples] = useState<PixelSample[]>([]);
-  const [hasValidSignature, setHasValidSignature] = useState<boolean | null>(null);
+  const [detectedMode, setDetectedMode] = useState<BitDepthMode | null>(null);
+  const [inspected, setInspected] = useState(false);
 
   const inspectImageBuffer = async (info: SelectedImageInfo) => {
-    setImageInfo(info);
     try {
-      const base64 = await readImageAsBase64(info.uri);
+      const base64 = await readImageAsBase64(info.uri, info.base64);
       const skData = Skia.Data.fromBase64(base64);
       const image = Skia.Image.MakeImageFromEncoded(skData);
       if (!image) throw new Error('Unable to decode image.');
@@ -37,7 +42,6 @@ export default function BitInspectorScreen() {
 
       if (!pixels || !(pixels instanceof Uint8Array)) return;
 
-      // Sample first 6 pixels to display raw RGBA binary representation
       const parsedSamples: PixelSample[] = [];
       for (let p = 0; p < 6 && p * 4 + 2 < pixels.length; p++) {
         const r = pixels[p * 4];
@@ -53,47 +57,81 @@ export default function BitInspectorScreen() {
           bBin: b.toString(2).padStart(8, '0'),
         });
       }
-      setSamples(parsedSamples);
 
-      // Check first 24 LSB bits for "SEC" (0x53, 0x45, 0x43)
-      const bits: number[] = [];
-      for (let i = 0; bits.length < 24 && i < pixels.length; i++) {
-        if (i % 4 !== 3) bits.push(pixels[i] & 1);
-      }
-      const sigBytes = [0, 1, 2].map((bIdx) => {
-        let val = 0;
-        for (let bit = 0; bit < 8; bit++) {
-          val = (val << 1) | bits[bIdx * 8 + bit];
+      const probeHeader = (mode: BitDepthMode): boolean => {
+        const bits: number[] = [];
+        for (let i = 0; bits.length < 32 && i < pixels.length; i++) {
+          if (i % 4 === 3) continue;
+          for (let b = mode - 1; b >= 0 && bits.length < 32; b--) {
+            bits.push((pixels[i] >> b) & 1);
+          }
         }
-        return val;
-      });
-      setHasValidSignature(sigBytes[0] === 0x53 && sigBytes[1] === 0x45 && sigBytes[2] === 0x43);
+        const bytes = new Uint8Array(4);
+        for (let bIdx = 0; bIdx < 4; bIdx++) {
+          let val = 0;
+          for (let bit = 0; bit < 8; bit++) {
+            val = (val << 1) | (bits[bIdx * 8 + bit] ?? 0);
+          }
+          bytes[bIdx] = val;
+        }
+        return (
+          STEGO_MAGIC.every((m, idx) => bytes[idx] === m) && bytes.at(3) === mode
+        );
+      };
+
+      const modes: BitDepthMode[] = Array.of(1, 2, 4, 8);
+      const foundMode = modes.find((m) => probeHeader(m)) ?? null;
+
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setImageInfo(null);
+      setSamples(parsedSamples);
+      setDetectedMode(foundMode);
+      setInspected(true);
     } catch (e: any) {
+      setImageInfo(null);
       Alert.alert('Inspector Error', e?.message || 'Could not inspect pixel buffer.');
     }
   };
 
+  const handleClearReport = () => {
+    setImageInfo(null);
+    setSamples([]);
+    setDetectedMode(null);
+    setInspected(false);
+  };
+
+  const highlightSplitIndex = detectedMode ? 8 - detectedMode : 7;
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <ImageDropzone
+        mode="stego"
         imageInfo={imageInfo}
         title="Inspect Raw RGBA Pixel Buffer"
         onImagePicked={inspectImageBuffer}
       />
 
-      {hasValidSignature !== null && (
+      {inspected && (
         <View
           style={[
             styles.sigBanner,
-            { borderColor: hasValidSignature ? COLORS.primary : COLORS.border },
+            { borderColor: detectedMode !== null ? COLORS.primary : COLORS.border },
           ]}
         >
-          <Text style={styles.sigTitle}>
-            Stego Magic Header ("SEC"): {hasValidSignature ? 'DETECTED ✅' : 'NOT FOUND ❌'}
-          </Text>
+          <View style={styles.sigHeaderRow}>
+            <Text style={styles.sigTitle}>
+              {detectedMode !== null
+                ? `DETECTED ✅ (${detectedMode}-Bit Plane Mode)`
+                : 'Stego Header: NOT FOUND ❌'}
+            </Text>
+            <TouchableOpacity onPress={handleClearReport} style={styles.clearReportBtn}>
+              <Icon name="refresh-outline" size={15} color={COLORS.textSecondary} />
+              <Text style={styles.clearReportText}>Reset</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.sigSub}>
-            {hasValidSignature
-              ? 'First 24 RGB LSBs match 0x53 0x45 0x43 protocol signature.'
+            {detectedMode !== null
+              ? `RGB channels match 0x53 0x45 0x43 ("SEC") protocol in ${detectedMode}-Bit plane density.`
               : 'Standard cover image or JPEG-compressed file.'}
           </Text>
         </View>
@@ -102,22 +140,24 @@ export default function BitInspectorScreen() {
       {samples.length > 0 && (
         <View style={styles.tableCard}>
           <Text style={styles.tableHeading}>Raw Pixel Bit-Plane Dump (First 6 Pixels)</Text>
-          <Text style={styles.tableHint}>Highlighted last bit (LSB) stores hidden payload</Text>
+          <Text style={styles.tableHint}>
+            Highlighted last {detectedMode ?? 1} bit(s) store hidden payload
+          </Text>
 
           {samples.map((px) => (
             <View key={px.index} style={styles.pixelRow}>
               <Text style={styles.pxLabel}>Pixel #{px.index}</Text>
               <Text style={styles.binLine}>
-                R({px.r.toString().padStart(3, ' ')}): {px.rBin.slice(0, 7)}
-                <Text style={styles.lsbHighlight}>{px.rBin.slice(7)}</Text>
+                R({px.r.toString().padStart(3, ' ')}): {px.rBin.slice(0, highlightSplitIndex)}
+                <Text style={styles.lsbHighlight}>{px.rBin.slice(highlightSplitIndex)}</Text>
               </Text>
               <Text style={styles.binLine}>
-                G({px.g.toString().padStart(3, ' ')}): {px.gBin.slice(0, 7)}
-                <Text style={styles.lsbHighlight}>{px.gBin.slice(7)}</Text>
+                G({px.g.toString().padStart(3, ' ')}): {px.gBin.slice(0, highlightSplitIndex)}
+                <Text style={styles.lsbHighlight}>{px.gBin.slice(highlightSplitIndex)}</Text>
               </Text>
               <Text style={styles.binLine}>
-                B({px.b.toString().padStart(3, ' ')}): {px.bBin.slice(0, 7)}
-                <Text style={styles.lsbHighlight}>{px.bBin.slice(7)}</Text>
+                B({px.b.toString().padStart(3, ' ')}): {px.bBin.slice(0, highlightSplitIndex)}
+                <Text style={styles.lsbHighlight}>{px.bBin.slice(highlightSplitIndex)}</Text>
               </Text>
             </View>
           ))}
@@ -137,8 +177,19 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 16,
   },
-  sigTitle: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700' },
-  sigSub: { color: COLORS.textSecondary, fontSize: 12, marginTop: 4 },
+  sigHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  sigTitle: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '700', flex: 1 },
+  clearReportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  clearReportText: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '600' },
+  sigSub: { color: COLORS.textSecondary, fontSize: 12, marginTop: 6 },
   tableCard: {
     backgroundColor: COLORS.cardBg,
     borderWidth: 1,

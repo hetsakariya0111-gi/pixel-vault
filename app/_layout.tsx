@@ -3,11 +3,13 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as Haptics from 'expo-haptics';
 import Aptabase from '@aptabase/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../src/theme/colors';
 
 SplashScreen.preventAutoHideAsync();
+Aptabase.init('A-US-8872599183');
 
 const Icon = Ionicons as any;
 
@@ -19,7 +21,9 @@ export default function RootLayout() {
     setAuthError(null);
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      if (!hasHardware) {
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      if (!hasHardware || !isEnrolled) {
         setIsUnlocked(true);
         Aptabase.trackEvent('vault_unlocked');
         return;
@@ -31,9 +35,11 @@ export default function RootLayout() {
       });
 
       if (result.success) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setIsUnlocked(true);
         Aptabase.trackEvent('vault_unlocked');
       } else {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setAuthError('Authentication failed. Tap below to try again.');
       }
     } finally {
@@ -42,7 +48,6 @@ export default function RootLayout() {
   };
 
   useEffect(() => {
-    Aptabase.init('A-US-8872599183');
     Aptabase.trackEvent('app_started');
     authenticate();
   }, []);
