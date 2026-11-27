@@ -25,12 +25,12 @@ export function ImageDropzone({
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 1, // 100% ઓરિજિનલ ક્વોલિટી રાખવી જરૂરી છે
+      quality: 1, // 100% original quality needed
     });
 
     if (!result.canceled && result.assets.length > 0) {
       const asset = result.assets[0];
-      // દરેક પિક્સેલમાં 3 bits (R,G,B) લેખે કુલ Bytes -> KB ની ગણતરી
+      // Calculate total bytes and convert to KB
       const totalBytes = Math.floor((asset.width * asset.height * 3) / 8) - 7;
       const maxCapacityKB = (totalBytes / 1024).toFixed(1);
 

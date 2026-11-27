@@ -7,11 +7,7 @@ import Aptabase from '@aptabase/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../src/theme/colors';
 
-// જ્યાં સુધી Biometric ગેટ તૈયાર ન થાય ત્યાં સુધી Splash Screen ને હોલ્ડ રાખો
 SplashScreen.preventAutoHideAsync();
-
-// 👇 અહીં તમારી Aptabase App Key પેસ્ટ કરો (દા.ત. 'A-EU-1234567890')
-Aptabase.init('A-US-8872599183');
 
 const Icon = Ionicons as any;
 
@@ -24,7 +20,6 @@ export default function RootLayout() {
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       if (!hasHardware) {
-        // જો Emulator માં ફિંગરપ્રિન્ટ સેન્સર ન હોય તો સીધું અનલોક થશે
         setIsUnlocked(true);
         Aptabase.trackEvent('vault_unlocked');
         return;
@@ -42,12 +37,12 @@ export default function RootLayout() {
         setAuthError('Authentication failed. Tap below to try again.');
       }
     } finally {
-      // Biometric prompt તૈયાર થતા જ Splash Screen હાઈડ કરો
       await SplashScreen.hideAsync();
     }
   };
 
   useEffect(() => {
+    Aptabase.init('A-US-8872599183');
     Aptabase.trackEvent('app_started');
     authenticate();
   }, []);

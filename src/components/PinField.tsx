@@ -11,7 +11,7 @@ interface PinFieldProps {
 }
 
 export function PinField({ label, value, onChangeText, placeholder = 'Enter 4-8 digit PIN' }: PinFieldProps) {
-  // PIN છુપાવવો છે કે બતાવવો તે માટેની સ્ટેટ
+  // pin visibility toggle state
   const [isHidden, setIsHidden] = useState(true);
 
   return (
@@ -25,8 +25,8 @@ export function PinField({ label, value, onChangeText, placeholder = 'Enter 4-8 
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={COLORS.textMuted}
-          secureTextEntry={isHidden} // true હોય તો ટપકાં (••••) દેખાય
-          keyboardType="numeric"      // ફક્ત નંબર કીબોર્ડ ખુલે
+          secureTextEntry={isHidden} // ture then visible ....
+          keyboardType="numeric"      // only number keyboard opens
           maxLength={12}
         />
         <TouchableOpacity onPress={() => setIsHidden(!isHidden)} style={styles.eyeBtn}>
