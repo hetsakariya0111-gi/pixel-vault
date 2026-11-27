@@ -35,6 +35,30 @@
           "backgroundColor": "#ffffff"
         }
       ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Pixel Vault to save encoded PNG images to your gallery.",
+          "savePhotosPermission": "Allow Pixel Vault to save encoded PNG images to your gallery.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Pixel Vault to save encoded PNG images to your gallery.",
+          "savePhotosPermission": "Allow Pixel Vault to save encoded PNG images to your gallery.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Pixel Vault to save encoded PNG images to your gallery.",
+          "savePhotosPermission": "Allow Pixel Vault to save encoded PNG images to your gallery.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
       "expo-sharing"
     ],
     "experiments": {

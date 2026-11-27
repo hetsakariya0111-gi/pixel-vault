@@ -1,5 +1,5 @@
+import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 
 export async function readImageAsBase64(uri: string): Promise<string> {
@@ -10,28 +10,39 @@ export async function readImageAsBase64(uri: string): Promise<string> {
 
 export async function saveAndShareStegoPng(base64Png: string): Promise<string> {
   const fileName = `pixel_vault_${Date.now()}.png`;
-  const fileUri = `${FileSystem.documentDirectory}${fileName}`;
 
-  // 1. Write lossless PNG to app storage
-  await FileSystem.writeAsStringAsync(fileUri, base64Png, {
+  // 1. Android માટે: સીધું ફોનના Downloads / કોઈ પણ ફોલ્ડરમાં સેવ કરવાનું ઓફિશિયલ "Save As" બોક્સ ખોલો
+  if (Platform.OS === 'android' && FileSystem.StorageAccessFramework) {
+    const permissions =
+      await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+
+    if (permissions.granted) {
+      const savedUri = await FileSystem.StorageAccessFramework.createFileAsync(
+        permissions.directoryUri,
+        fileName,
+        'image/png'
+      );
+
+      await FileSystem.writeAsStringAsync(savedUri, base64Png, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      return savedUri;
+    }
+  }
+
+  // 2. Fallback (iOS અથવા જો યુઝર ફોલ્ડર કેન્સલ કરે તો)
+  const fallbackUri = `${FileSystem.documentDirectory}${fileName}`;
+  await FileSystem.writeAsStringAsync(fallbackUri, base64Png, {
     encoding: FileSystem.EncodingType.Base64,
   });
 
-  // 2. Save directly to Phone Gallery as uncompressed PNG
-  const { status } = await MediaLibrary.requestPermissionsAsync();
-  if (status === 'granted') {
-    await MediaLibrary.saveToLibraryAsync(fileUri);
-  }
-
-  // 3. Also open Share sheet if user wants to send as Document
-  const canShare = await Sharing.isAvailableAsync();
-  if (canShare) {
-    await Sharing.shareAsync(fileUri, {
+  if (await Sharing.isAvailableAsync()) {
+    await Sharing.shareAsync(fallbackUri, {
       mimeType: 'image/png',
-      dialogTitle: 'Share as Document (Do not send as normal WhatsApp photo)',
       UTI: 'public.png',
     });
   }
 
-  return fileUri;
+  return fallbackUri;
 }
