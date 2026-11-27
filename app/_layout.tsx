@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import * as LocalAuthentication from 'expo-local-authentication';
+import Aptabase from '@aptabase/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../src/theme/colors';
+
+// જ્યાં સુધી Biometric ગેટ તૈયાર ન થાય ત્યાં સુધી Splash Screen ને હોલ્ડ રાખો
+SplashScreen.preventAutoHideAsync();
+
+// 👇 અહીં તમારી Aptabase App Key પેસ્ટ કરો (દા.ત. 'A-EU-1234567890')
+Aptabase.init('A-US-8872599183');
+
+const Icon = Ionicons as any;
 
 export default function RootLayout() {
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -11,33 +21,41 @@ export default function RootLayout() {
 
   const authenticate = async () => {
     setAuthError(null);
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    if (!hasHardware) {
-      // જો Emulator માં ફિંગરપ્રિન્ટ સેન્સર ન હોય તો સીધું અનલોક થશે
-      setIsUnlocked(true);
-      return;
-    }
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      if (!hasHardware) {
+        // જો Emulator માં ફિંગરપ્રિન્ટ સેન્સર ન હોય તો સીધું અનલોક થશે
+        setIsUnlocked(true);
+        Aptabase.trackEvent('vault_unlocked');
+        return;
+      }
 
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Unlock Pixel Steganography Vault',
-      fallbackLabel: 'Use Device Passcode',
-    });
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Unlock Pixel Steganography Vault',
+        fallbackLabel: 'Use Device Passcode',
+      });
 
-    if (result.success) {
-      setIsUnlocked(true);
-    } else {
-      setAuthError('Authentication failed. Tap below to try again.');
+      if (result.success) {
+        setIsUnlocked(true);
+        Aptabase.trackEvent('vault_unlocked');
+      } else {
+        setAuthError('Authentication failed. Tap below to try again.');
+      }
+    } finally {
+      // Biometric prompt તૈયાર થતા જ Splash Screen હાઈડ કરો
+      await SplashScreen.hideAsync();
     }
   };
 
   useEffect(() => {
+    Aptabase.trackEvent('app_started');
     authenticate();
   }, []);
 
   if (!isUnlocked) {
     return (
       <View style={styles.lockContainer}>
-        <Ionicons name="shield-checkmark" size={72} color={COLORS.primary} />
+        <Icon name="shield-checkmark" size={72} color={COLORS.primary} />
         <Text style={styles.title}>Pixel Vault Locked</Text>
         <Text style={styles.subtitle}>Zero-Knowledge Hardware Biometric Gate</Text>
         {authError && <Text style={styles.error}>{authError}</Text>}

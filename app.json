@@ -1,18 +1,19 @@
 {
   "expo": {
-    "name": "pixel-vault",
+    "name": "Pixel Vault",
     "slug": "pixel-vault",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pixelvault",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hetsakariya0111.pixelvault"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#090D16",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -31,24 +32,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
-      [
-        "expo-media-library",
-        {
-          "photosPermission": "Allow Pixel Vault to save encoded PNG images to your gallery.",
-          "savePhotosPermission": "Allow Pixel Vault to save encoded PNG images to your gallery.",
-          "isAccessMediaLocationEnabled": false
-        }
-      ],
-      [
-        "expo-media-library",
-        {
-          "photosPermission": "Allow Pixel Vault to save encoded PNG images to your gallery.",
-          "savePhotosPermission": "Allow Pixel Vault to save encoded PNG images to your gallery.",
-          "isAccessMediaLocationEnabled": false
+          "backgroundColor": "#090D16"
         }
       ],
       [
